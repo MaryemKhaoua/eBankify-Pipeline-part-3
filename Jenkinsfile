@@ -73,8 +73,10 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
-                    docker.build("${DOCKER_IMAGE}:latest")
+                    bat '''
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                    '''
                 }
             }
         }
@@ -87,22 +89,21 @@ pipeline {
             }
         }
 
-      stage('Deploy') {
-          steps {
-              script {
-                  try {
-                      bat 'docker ps -a | find "postgres_db" && docker rm -f postgres_db'
-                  } catch (Exception e) {
-                      echo "Pas de conteneur postgres_db existant."
-                  }
-                  bat '''
-                      echo "Déploiement des services avec Docker Compose..."
-                      docker-compose up -d
-                  '''
-              }
-          }
-      }
-
+        stage('Deploy') {
+            steps {
+                script {
+                    try {
+                        bat 'docker ps -a | findstr postgres_db && docker rm -f postgres_db'
+                    } catch (Exception e) {
+                        echo "Pas de conteneur postgres_db existant."
+                    }
+                    bat '''
+                        echo "Déploiement des services avec Docker Compose..."
+                        docker-compose up -d
+                    '''
+                }
+            }
+        }
     }
 
     post {
