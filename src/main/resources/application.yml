@@ -15,3 +15,6 @@ spring:
   liquibase:
     change-log: classpath:db/master.yml
     enabled: true
+
+server:
+  port: 8082
