@@ -18,7 +18,7 @@ pipeline {
                 script {
                     deleteDir()
                     echo "Clonage du dépôt Git..."
-                    bat '''
+                    sh '''
                         git clone -b main https://github.com/MaryemKhaoua/CI-CD-jenkins .
                         echo "Dépôt cloné avec succès."
                     '''
