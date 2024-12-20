@@ -115,7 +115,7 @@ pipeline {
                      body: "Le pipeline Jenkins s'est terminé avec succès !"
             }
             failure {
-                mail to: 'maryem.khaoua@gmail.com,
+                mail to: 'maryem.khaoua@gmail.com',
                      subject: "Pipeline Failure - eBankify",
                      body: "Le pipeline Jenkins a échoué. Veuillez vérifier les logs."
             }
