@@ -29,8 +29,8 @@
     <properties>
         <java.version>17</java.version>
         <sonar.host.url>http://localhost:9000</sonar.host.url>
-        <sonar.login>maryem</sonar.login>
-        <sonar.password>Password@123</sonar.password>
+        <sonar.token>squ_36deab8c6bb224db21e59be81e058e00b40812c4
+        </sonar.token>
     </properties>
     <dependencies>
         <dependency>
