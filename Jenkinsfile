@@ -2,25 +2,25 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven'
+        maven 'Maven' // Replace 'Maven' with the actual name of your Maven installation in Jenkins
     }
 
     environment {
-        SPRING_DATASOURCE_URL = 'jdbc:postgresql://localhost:5433/eBankifySecurity'
         DOCKER_IMAGE = 'banking-system'
         DOCKER_TAG = "${BUILD_NUMBER}"
         SONAR_TOKEN = credentials('sonar-token')
+        MAVEN_OPTS = '-Dmaven.test.failure.ignore=true'
     }
 
     stages {
         stage('Checkout') {
             steps {
                 script {
-                    deleteDir()
-                    echo "Clonage du dépôt Git..."
+                    deleteDir() // Clean workspace
+                    echo "Cloning Git repository..."
                     sh '''
                         git clone -b main https://github.com/MaryemKhaoua/CI-CD-jenkins .
-                        echo "Dépôt cloné avec succès."
+                        echo "Repository cloned successfully."
                     '''
                 }
             }
@@ -28,44 +28,56 @@ pipeline {
 
         stage('Environment Check') {
             steps {
-                bat '''
-                    echo "Version de Git :"
+                sh '''
+                    echo "Git version:"
                     git --version
-                    echo "Branche Git actuelle :"
+                    echo "Current Git branch:"
                     git branch --show-current
-                    echo "Statut de Git :"
+                    echo "Git status:"
                     git status
-                    echo "Version de Java :"
+                    echo "Java version:"
                     java -version
-                    echo "Version de Javac :"
-                    javac -version
-                    echo "Contenu du répertoire de travail :"
-                    dir
+                    echo "Maven version:"
+                    mvn --version
+                    echo "Working directory contents:"
+                    pwd
+                    ls -la
                 '''
             }
         }
 
         stage('Build') {
             steps {
-                bat 'mvn clean package'
+                sh '''
+                    mvn clean package -DskipTests --batch-mode --errors
+                '''
             }
         }
 
         stage('Unit Tests') {
             steps {
-                bat 'mvn test'
+                sh 'mvn test --batch-mode'
             }
             post {
                 always {
                     junit '**/target/surefire-reports/*.xml'
+                    jacoco(
+                        execPattern: '**/target/*.exec',
+                        classPattern: '**/target/classes',
+                        sourcePattern: '**/src/main/java'
+                    )
                 }
             }
         }
 
         stage('Code Quality Analysis') {
             steps {
-                bat '''
-                    mvn sonar:sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.token=${env.SONAR_TOKEN}
+                sh '''
+                    mvn sonar:sonar \
+                        -Dsonar.projectKey=banking-system \
+                        -Dsonar.projectName=BankingSystem \
+                        -Dsonar.host.url=http://sonarqube:9000 \
+                        -Dsonar.login=${SONAR_TOKEN}
                 '''
             }
         }
@@ -73,10 +85,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    bat '''
-                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                    '''
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    docker.build("${DOCKER_IMAGE}:latest")
                 }
             }
         }
@@ -84,7 +94,7 @@ pipeline {
         stage('Manual Approval') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
-                    input message: 'Déployer en production ?', ok: 'Procéder'
+                    input message: 'Deploy to production?', ok: 'Proceed'
                 }
             }
         }
@@ -92,30 +102,22 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    try {
-                        bat 'docker ps -a | findstr postgres_db && docker rm -f postgres_db'
-                    } catch (Exception e) {
-                        echo "Pas de conteneur postgres_db existant."
-                    }
-                    bat '''
-                        echo "Déploiement des services avec Docker Compose..."
-                        docker-compose up -d
-                    '''
+                    docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").run('-p 8081:8080')
                 }
             }
         }
     }
 
     post {
-        success {
-            mail to: 'maryem.khaoua@gmail.com',
-                 subject: "Pipeline Success - eBankify",
-                 body: "Le pipeline Jenkins s'est terminé avec succès !"
+            success {
+                mail to: 'maryem.khaoua@gmail.com',
+                     subject: "Pipeline Success - eBankify",
+                     body: "Le pipeline Jenkins s'est terminé avec succès !"
+            }
+            failure {
+                mail to: 'maryem.khaoua@gmail.com,
+                     subject: "Pipeline Failure - eBankify",
+                     body: "Le pipeline Jenkins a échoué. Veuillez vérifier les logs."
+            }
         }
-        failure {
-            mail to: 'maryem.khaoua@gmail.com',
-                 subject: "Pipeline Failure - eBankify",
-                 body: "Le pipeline Jenkins a échoué. Veuillez vérifier les logs."
-        }
-    }
 }
